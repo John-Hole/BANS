@@ -86,6 +86,7 @@ function initDOM() {
     errorMessage: document.getElementById('error-message'),
     btnRetry: document.getElementById('btn-retry'),
     btnInstallPwa: document.getElementById('btn-install-pwa'),
+    iosInstallDrawer: document.getElementById('ios-install-drawer'),
     
     // Contenuto Playlist
     playlistTitle: document.getElementById('playlist-title'),
@@ -149,16 +150,43 @@ function setupAudioPlayers() {
 
 // CARICA LE IMPOSTAZIONI SALVATE
 function loadSettings() {
-  const savedAutoplay = localStorage.getItem('bans_autoplay');
-  if (savedAutoplay !== null) {
-    state.autoplay = savedAutoplay === 'true';
-    if (DOM.autoplayToggle) DOM.autoplayToggle.checked = state.autoplay;
+  // Carica da cookie con fallback a localStorage per retrocompatibilità
+  const cookieAutoplay = getCookie('bans_autoplay');
+  if (cookieAutoplay !== null) {
+    state.autoplay = cookieAutoplay === 'true';
+  } else {
+    const savedAutoplay = localStorage.getItem('bans_autoplay');
+    if (savedAutoplay !== null) {
+      state.autoplay = savedAutoplay === 'true';
+    }
+  }
+  if (DOM.autoplayToggle) DOM.autoplayToggle.checked = state.autoplay;
+
+  const cookieWakeLock = getCookie('bans_wakelock');
+  if (cookieWakeLock !== null) {
+    state.keepScreenOn = cookieWakeLock === 'true';
+  } else {
+    const savedWakeLock = localStorage.getItem('bans_wakelock');
+    if (savedWakeLock !== null) {
+      state.keepScreenOn = savedWakeLock === 'true';
+    }
+  }
+  if (DOM.wakelockToggle) DOM.wakelockToggle.checked = state.keepScreenOn;
+
+  // Ripristina Shuffle
+  const cookieShuffle = getCookie('bans_shuffle');
+  if (cookieShuffle !== null) {
+    state.isShuffle = cookieShuffle === 'true';
+    if (DOM.btnShuffle) {
+      DOM.btnShuffle.classList.toggle('active', state.isShuffle);
+    }
   }
 
-  const savedWakeLock = localStorage.getItem('bans_wakelock');
-  if (savedWakeLock !== null) {
-    state.keepScreenOn = savedWakeLock === 'true';
-    if (DOM.wakelockToggle) DOM.wakelockToggle.checked = state.keepScreenOn;
+  // Ripristina Repeat
+  const cookieRepeat = getCookie('bans_repeat');
+  if (cookieRepeat !== null) {
+    state.repeatState = parseInt(cookieRepeat, 10) || 0;
+    updateRepeatUI();
   }
 }
 
@@ -195,6 +223,7 @@ function setupEventListeners() {
     DOM.autoplayToggle.addEventListener('change', (e) => {
       state.autoplay = e.target.checked;
       localStorage.setItem('bans_autoplay', state.autoplay);
+      savePlayerStateToCookies();
     });
   }
   if (DOM.wakelockToggle) {
@@ -206,6 +235,7 @@ function setupEventListeners() {
       } else if (!state.keepScreenOn) {
         releaseWakeLock();
       }
+      savePlayerStateToCookies();
     });
   }
 
@@ -236,6 +266,10 @@ function setupEventListeners() {
   // Monitoraggio eventi audio su entrambi i tag
   setupPlayerEvents(players.playerA);
   setupPlayerEvents(players.playerB);
+
+  // Salva lo stato nei cookie all'uscita/sospensione dell'app
+  window.addEventListener('beforeunload', savePlayerStateToCookies);
+  window.addEventListener('pagehide', savePlayerStateToCookies);
 }
 
 // GESTIONE DEGLI EVENTI AUDIO
@@ -243,6 +277,7 @@ function setupPlayerEvents(player) {
   player.addEventListener('timeupdate', () => {
     if (player === players.active) {
       updateProgress();
+      throttleTimeSave();
     }
   });
 
@@ -283,6 +318,9 @@ async function initApp() {
   try {
     // Carica la playlist locale
     await fetchPlaylist();
+    
+    // Ripristina coda e player dai cookie
+    restoreQueueAndPlayerState();
     
     // Mostra la playlist
     renderPlaylist();
@@ -501,6 +539,7 @@ function playTrackAtIndex(index) {
 
   // Aggiorna lo stato visivo della lista
   renderPlaylist();
+  savePlayerStateToCookies();
 }
 
 // GESTISCE LA FINE NATURALE DEL BRANO
@@ -565,6 +604,7 @@ function performInstantTransition(nextTrack, nextIndex) {
   updateUI();
   updateMediaSession();
   renderPlaylist();
+  savePlayerStateToCookies();
   
   DOM.playerDrawer.classList.add('is-loading');
   
@@ -612,6 +652,7 @@ function playPrevious() {
   if (players.active.currentTime > 3) {
     players.active.currentTime = 0;
     updateProgress();
+    savePlayerStateToCookies();
     return;
   }
 
@@ -622,6 +663,7 @@ function playPrevious() {
     } else {
       players.active.currentTime = 0; // Riavvia primo brano
       updateProgress();
+      savePlayerStateToCookies();
       return;
     }
   }
@@ -641,6 +683,7 @@ function stopPlayback() {
 
   updateUI();
   renderPlaylist();
+  savePlayerStateToCookies();
 
   if ('mediaSession' in navigator) {
     navigator.mediaSession.playbackState = 'none';
@@ -674,6 +717,7 @@ function togglePlayPause() {
   
   // Aggiorna la lista brani per togliere/mettere l'animazione della riga
   renderPlaylist();
+  savePlayerStateToCookies();
   
   if ('mediaSession' in navigator) {
     navigator.mediaSession.playbackState = state.isPlaying ? 'playing' : 'paused';
@@ -687,55 +731,39 @@ function toggleShuffle() {
 
   if (state.tracks.length === 0) return;
 
-  const currentTrack = state.queue[state.currentTrackIndex];
+  const currentTrack = state.currentTrackIndex !== -1 ? state.queue[state.currentTrackIndex] : null;
 
   if (state.isShuffle) {
     // Mescola la lista dei brani, ma mantiene la traccia corrente in cima per evitare interruzioni
-    const remaining = state.tracks.filter(t => t.id !== currentTrack.id);
+    const remaining = currentTrack ? state.tracks.filter(t => t.id !== currentTrack.id) : [...state.tracks];
     for (let i = remaining.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
     }
-    state.queue = [currentTrack, ...remaining];
-    state.currentTrackIndex = 0;
+    if (currentTrack) {
+      state.queue = [currentTrack, ...remaining];
+      state.currentTrackIndex = 0;
+    } else {
+      state.queue = remaining;
+      state.currentTrackIndex = -1;
+    }
   } else {
     // Ripristina l'ordine alfabetico originale
     state.queue = [...state.tracks];
-    state.currentTrackIndex = state.queue.findIndex(t => t.id === currentTrack.id);
+    if (currentTrack) {
+      state.currentTrackIndex = state.queue.findIndex(t => t.id === currentTrack.id);
+    } else {
+      state.currentTrackIndex = -1;
+    }
   }
+  savePlayerStateToCookies();
 }
 
 // REPEAT CODA DI RIPRODUZIONE
 function toggleRepeat() {
   state.repeatState = (state.repeatState + 1) % 3; // 0, 1, 2
-  
-  DOM.btnRepeat.classList.remove('active');
-  DOM.btnRepeat.querySelector('span')?.remove();
-
-  if (state.repeatState === 1) {
-    DOM.btnRepeat.classList.add('active'); // Ripeti playlist
-  } else if (state.repeatState === 2) {
-    DOM.btnRepeat.classList.add('active'); // Ripeti singolo brano
-    
-    // Aggiunge un badge numerico "1" sul pulsante
-    const badge = document.createElement('span');
-    badge.textContent = '1';
-    badge.style.position = 'absolute';
-    badge.style.fontSize = '9px';
-    badge.style.fontWeight = 'bold';
-    badge.style.background = 'var(--primary)';
-    badge.style.color = '#ffffff';
-    badge.style.borderRadius = '50%';
-    badge.style.width = '14px';
-    badge.style.height = '14px';
-    badge.style.display = 'flex';
-    badge.style.alignItems = 'center';
-    badge.style.justifyContent = 'center';
-    badge.style.bottom = '4px';
-    badge.style.right = '4px';
-    badge.style.border = '1px solid var(--bg-primary)';
-    DOM.btnRepeat.appendChild(badge);
-  }
+  updateRepeatUI();
+  savePlayerStateToCookies();
 }
 
 // AGGIORNA SEEKBAR E TIMER DEL DRAWER
@@ -923,6 +951,7 @@ function handleDrop(e) {
     const movedTrack = state.queue.splice(fromIndex, 1)[0];
     state.queue.splice(toIndex, 0, movedTrack);
     renderQueue();
+    savePlayerStateToCookies();
   }
   return false;
 }
@@ -1050,6 +1079,20 @@ function closeSettings() {
   }
 }
 
+function openIosInstall() {
+  if (DOM.iosInstallDrawer) {
+    DOM.iosInstallDrawer.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeIosInstall() {
+  if (DOM.iosInstallDrawer) {
+    DOM.iosInstallDrawer.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
 let wakeLock = null;
 async function requestWakeLock() {
   if (state.keepScreenOn && 'wakeLock' in navigator) {
@@ -1087,31 +1130,216 @@ function addToQueue(track) {
   state.manualQueueCount++;
   
   renderQueue();
+  savePlayerStateToCookies();
 }
 
 // GESTIONE INSTALLAZIONE PWA (BULLON IN ALTO)
 let deferredPrompt;
 function setupPwaInstall() {
   if (!DOM.btnInstallPwa) return;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  // Mostra il pulsante "Installa App" per iOS se non è già installata
+  if (isIOS && !isStandalone) {
+    DOM.btnInstallPwa.classList.remove('hidden');
+  }
+
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
     
-    // Mostra il pulsante "Installa App"
+    // Mostra il pulsante "Installa App" per Android / Chrome
     DOM.btnInstallPwa.classList.remove('hidden');
   });
 
   DOM.btnInstallPwa.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`Risultato installazione: ${outcome}`);
-    deferredPrompt = null;
-    DOM.btnInstallPwa.classList.add('hidden');
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`Risultato installazione: ${outcome}`);
+      deferredPrompt = null;
+      DOM.btnInstallPwa.classList.add('hidden');
+    } else if (isIOS) {
+      openIosInstall();
+    }
   });
 
   // Rileva se l'app viene eseguita come PWA installata
-  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+  if (isStandalone) {
     DOM.btnInstallPwa.classList.add('hidden');
+  }
+}
+
+// ============================================================================
+// GESTIONE COOKIE E PERSISTENZA STATO (Scadenza 10 ore)
+// ============================================================================
+function setCookie(name, value, hours = 10) {
+  const date = new Date();
+  date.setTime(date.getTime() + (hours * 60 * 60 * 1000));
+  const expires = "; expires=" + date.toUTCString();
+  document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/; SameSite=Lax";
+}
+
+function getCookie(name) {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1);
+    if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+  }
+  return null;
+}
+
+function eraseCookie(name) {
+  document.cookie = name + '=; Max-Age=-99999999; path=/; SameSite=Lax';
+}
+
+function savePlayerStateToCookies() {
+  try {
+    // 1. Salva coda (solo gli ID per risparmiare spazio nel cookie)
+    if (state.queue && state.queue.length > 0) {
+      const queueIds = state.queue.map(t => t.id);
+      setCookie('bans_queue', JSON.stringify(queueIds), 10);
+    } else {
+      eraseCookie('bans_queue');
+    }
+
+    // 2. Salva indice brano corrente
+    setCookie('bans_current_track_index', state.currentTrackIndex, 10);
+
+    // 3. Salva tempo corrente
+    if (players.active && !isNaN(players.active.currentTime)) {
+      setCookie('bans_current_time', players.active.currentTime, 10);
+    }
+
+    // 4. Salva impostazioni e controlli
+    setCookie('bans_autoplay', state.autoplay, 10);
+    setCookie('bans_wakelock', state.keepScreenOn, 10);
+    setCookie('bans_shuffle', state.isShuffle, 10);
+    setCookie('bans_repeat', state.repeatState, 10);
+    setCookie('bans_manual_queue_count', state.manualQueueCount, 10);
+  } catch (err) {
+    console.error('Errore durante il salvataggio dello stato nei cookie:', err);
+  }
+}
+
+let lastTimeSave = 0;
+function throttleTimeSave() {
+  const now = Date.now();
+  if (now - lastTimeSave > 5000) { // Salva ogni 5 secondi
+    if (players.active && !isNaN(players.active.currentTime)) {
+      setCookie('bans_current_time', players.active.currentTime, 10);
+    }
+    lastTimeSave = now;
+  }
+}
+
+function restoreQueueAndPlayerState() {
+  try {
+    // 1. Ripristina coda
+    const savedQueueStr = getCookie('bans_queue');
+    if (savedQueueStr) {
+      const savedQueueIds = JSON.parse(savedQueueStr);
+      if (Array.isArray(savedQueueIds) && savedQueueIds.length > 0) {
+        const reconstructedQueue = [];
+        savedQueueIds.forEach(id => {
+          const track = state.tracks.find(t => t.id === id);
+          if (track) {
+            reconstructedQueue.push({ ...track, _queueId: Date.now() + Math.random() });
+          }
+        });
+        if (reconstructedQueue.length > 0) {
+          state.queue = reconstructedQueue;
+        }
+      }
+    }
+
+    // 2. Ripristina manualQueueCount
+    const savedManualQueueCount = getCookie('bans_manual_queue_count');
+    if (savedManualQueueCount !== null) {
+      state.manualQueueCount = parseInt(savedManualQueueCount, 10) || 0;
+    }
+
+    // 3. Ripristina l'indice del brano corrente
+    const savedIndexStr = getCookie('bans_current_track_index');
+    let savedIndex = -1;
+    if (savedIndexStr !== null) {
+      savedIndex = parseInt(savedIndexStr, 10);
+    }
+
+    // 4. Ripristina il tempo corrente
+    const savedTimeStr = getCookie('bans_current_time');
+    let savedTime = 0;
+    if (savedTimeStr !== null) {
+      savedTime = parseFloat(savedTimeStr) || 0;
+    }
+
+    // Se abbiamo una traccia valida salvata, carichiamola senza avviare il play automatico
+    if (savedIndex >= 0 && savedIndex < state.queue.length) {
+      loadTrackAtIndex(savedIndex, savedTime);
+    }
+  } catch (err) {
+    console.error('Errore durante il ripristino dello stato dai cookie:', err);
+  }
+}
+
+function loadTrackAtIndex(index, time = 0) {
+  if (state.queue.length === 0 || index < 0 || index >= state.queue.length) return;
+
+  state.currentTrackIndex = index;
+  const track = state.queue[index];
+  const streamUrl = getStreamUrl(track);
+
+  // Imposta sorgente sul player attivo
+  players.active.src = streamUrl;
+  players.active.volume = 1;
+  
+  if (time > 0) {
+    const onMetadataLoaded = () => {
+      players.active.currentTime = time;
+      players.active.removeEventListener('loadedmetadata', onMetadataLoaded);
+    };
+    players.active.addEventListener('loadedmetadata', onMetadataLoaded);
+  }
+  
+  state.isPlaying = false;
+
+  // Aggiorna l'interfaccia utente
+  updateUI();
+  updateMediaSession();
+  renderPlaylist();
+}
+
+function updateRepeatUI() {
+  if (!DOM.btnRepeat) return;
+  DOM.btnRepeat.classList.remove('active');
+  DOM.btnRepeat.querySelector('span')?.remove();
+
+  if (state.repeatState === 1) {
+    DOM.btnRepeat.classList.add('active'); // Ripeti playlist
+  } else if (state.repeatState === 2) {
+    DOM.btnRepeat.classList.add('active'); // Ripeti singolo brano
+    
+    // Aggiunge un badge numerico "1" sul pulsante
+    const badge = document.createElement('span');
+    badge.textContent = '1';
+    badge.style.position = 'absolute';
+    badge.style.fontSize = '9px';
+    badge.style.fontWeight = 'bold';
+    badge.style.background = 'var(--primary)';
+    badge.style.color = '#ffffff';
+    badge.style.borderRadius = '50%';
+    badge.style.width = '14px';
+    badge.style.height = '14px';
+    badge.style.display = 'flex';
+    badge.style.alignItems = 'center';
+    badge.style.justifyContent = 'center';
+    badge.style.bottom = '4px';
+    badge.style.right = '4px';
+    badge.style.border = '1px solid var(--bg-primary)';
+    DOM.btnRepeat.appendChild(badge);
   }
 }
