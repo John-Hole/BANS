@@ -150,42 +150,33 @@ function setupAudioPlayers() {
 
 // CARICA LE IMPOSTAZIONI SALVATE
 function loadSettings() {
-  // Carica da cookie con fallback a localStorage per retrocompatibilità
-  const cookieAutoplay = getCookie('bans_autoplay');
-  if (cookieAutoplay !== null) {
-    state.autoplay = cookieAutoplay === 'true';
-  } else {
-    const savedAutoplay = localStorage.getItem('bans_autoplay');
-    if (savedAutoplay !== null) {
-      state.autoplay = savedAutoplay === 'true';
-    }
+  // Ripristina Autoplay
+  const savedAutoplay = localStorage.getItem('bans_autoplay');
+  if (savedAutoplay !== null) {
+    state.autoplay = savedAutoplay === 'true';
   }
   if (DOM.autoplayToggle) DOM.autoplayToggle.checked = state.autoplay;
 
-  const cookieWakeLock = getCookie('bans_wakelock');
-  if (cookieWakeLock !== null) {
-    state.keepScreenOn = cookieWakeLock === 'true';
-  } else {
-    const savedWakeLock = localStorage.getItem('bans_wakelock');
-    if (savedWakeLock !== null) {
-      state.keepScreenOn = savedWakeLock === 'true';
-    }
+  // Ripristina WakeLock
+  const savedWakeLock = localStorage.getItem('bans_wakelock');
+  if (savedWakeLock !== null) {
+    state.keepScreenOn = savedWakeLock === 'true';
   }
   if (DOM.wakelockToggle) DOM.wakelockToggle.checked = state.keepScreenOn;
 
   // Ripristina Shuffle
-  const cookieShuffle = getCookie('bans_shuffle');
-  if (cookieShuffle !== null) {
-    state.isShuffle = cookieShuffle === 'true';
+  const savedShuffle = localStorage.getItem('bans_shuffle');
+  if (savedShuffle !== null) {
+    state.isShuffle = savedShuffle === 'true';
     if (DOM.btnShuffle) {
       DOM.btnShuffle.classList.toggle('active', state.isShuffle);
     }
   }
 
   // Ripristina Repeat
-  const cookieRepeat = getCookie('bans_repeat');
-  if (cookieRepeat !== null) {
-    state.repeatState = parseInt(cookieRepeat, 10) || 0;
+  const savedRepeat = localStorage.getItem('bans_repeat');
+  if (savedRepeat !== null) {
+    state.repeatState = parseInt(savedRepeat, 10) || 0;
     updateRepeatUI();
   }
 }
@@ -792,14 +783,14 @@ function toggleShuffle() {
       state.currentTrackIndex = -1;
     }
   }
-  savePlayerStateToCookies();
+  localStorage.setItem('bans_shuffle', state.isShuffle);
 }
 
 // REPEAT CODA DI RIPRODUZIONE
 function toggleRepeat() {
   state.repeatState = (state.repeatState + 1) % 3; // 0, 1, 2
   updateRepeatUI();
-  savePlayerStateToCookies();
+  localStorage.setItem('bans_repeat', state.repeatState);
 }
 
 // AGGIORNA SEEKBAR E TIMER DEL DRAWER
@@ -1249,92 +1240,16 @@ function eraseCookie(name) {
 }
 
 function savePlayerStateToCookies() {
-  try {
-    // 1. Salva coda (solo gli ID per risparmiare spazio nel cookie)
-    if (state.queue && state.queue.length > 0) {
-      const queueIds = state.queue.map(t => t.id);
-      setCookie('bans_queue', JSON.stringify(queueIds), 10);
-    } else {
-      eraseCookie('bans_queue');
-    }
-
-    // 2. Salva indice brano corrente
-    setCookie('bans_current_track_index', state.currentTrackIndex, 10);
-
-    // 3. Salva tempo corrente
-    if (players.active && !isNaN(players.active.currentTime)) {
-      setCookie('bans_current_time', players.active.currentTime, 10);
-    }
-
-    // 4. Salva impostazioni e controlli
-    setCookie('bans_autoplay', state.autoplay, 10);
-    setCookie('bans_wakelock', state.keepScreenOn, 10);
-    setCookie('bans_shuffle', state.isShuffle, 10);
-    setCookie('bans_repeat', state.repeatState, 10);
-    setCookie('bans_manual_queue_count', state.manualQueueCount, 10);
-  } catch (err) {
-    console.error('Errore durante il salvataggio dello stato nei cookie:', err);
-  }
+  // Disattivato per rimuovere la persistenza dello stato tramite cookie
 }
 
 let lastTimeSave = 0;
 function throttleTimeSave() {
-  const now = Date.now();
-  if (now - lastTimeSave > 5000) { // Salva ogni 5 secondi
-    if (players.active && !isNaN(players.active.currentTime)) {
-      setCookie('bans_current_time', players.active.currentTime, 10);
-    }
-    lastTimeSave = now;
-  }
+  // Disattivato
 }
 
 function restoreQueueAndPlayerState() {
-  try {
-    // 1. Ripristina coda
-    const savedQueueStr = getCookie('bans_queue');
-    if (savedQueueStr) {
-      const savedQueueIds = JSON.parse(savedQueueStr);
-      if (Array.isArray(savedQueueIds) && savedQueueIds.length > 0) {
-        const reconstructedQueue = [];
-        savedQueueIds.forEach(id => {
-          const track = state.tracks.find(t => t.id === id);
-          if (track) {
-            reconstructedQueue.push({ ...track, _queueId: Date.now() + Math.random() });
-          }
-        });
-        if (reconstructedQueue.length > 0) {
-          state.queue = reconstructedQueue;
-        }
-      }
-    }
-
-    // 2. Ripristina manualQueueCount
-    const savedManualQueueCount = getCookie('bans_manual_queue_count');
-    if (savedManualQueueCount !== null) {
-      state.manualQueueCount = parseInt(savedManualQueueCount, 10) || 0;
-    }
-
-    // 3. Ripristina l'indice del brano corrente
-    const savedIndexStr = getCookie('bans_current_track_index');
-    let savedIndex = -1;
-    if (savedIndexStr !== null) {
-      savedIndex = parseInt(savedIndexStr, 10);
-    }
-
-    // 4. Ripristina il tempo corrente
-    const savedTimeStr = getCookie('bans_current_time');
-    let savedTime = 0;
-    if (savedTimeStr !== null) {
-      savedTime = parseFloat(savedTimeStr) || 0;
-    }
-
-    // Se abbiamo una traccia valida salvata, carichiamola senza avviare il play automatico
-    if (savedIndex >= 0 && savedIndex < state.queue.length) {
-      loadTrackAtIndex(savedIndex, savedTime);
-    }
-  } catch (err) {
-    console.error('Errore durante il ripristino dello stato dai cookie:', err);
-  }
+  // Disattivato per rimuovere il ripristino dello stato all'avvio
 }
 
 function loadTrackAtIndex(index, time = 0) {
