@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Bans Player</title>
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0066cc">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <!-- Apple/iOS Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bans Player">
+  <link rel="apple-touch-icon" href="icon.svg">
+
+  <!-- Fonts (Outfit & Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- App Wrapper -->
+  <div id="app">
+    
+    <!-- MAIN CONTENT -->
+    <main id="main-scroller">
+      
+      <!-- App Header -->
+      <header class="app-header">
+        <div class="app-title-group">
+          <h1>Bans Player</h1>
+          <p>Grest PSG Music Player</p>
+        </div>
+        <button id="btn-install-pwa" class="btn btn-install hidden">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Installa App
+        </button>
+      </header>
+
+      <!-- LOADER STATE -->
+      <div id="loader-view" class="loader-container">
+        <div class="loader"></div>
+        <p>Caricamento playlist locale...</p>
+      </div>
+
+      <!-- ERROR STATE -->
+      <div id="error-view" class="error-container hidden">
+        <h3>Errore di Caricamento</h3>
+        <p id="error-message">Impossibile caricare la playlist. Genera il file playlist.json ed esegui un server web.</p>
+        <button id="btn-retry" class="btn btn-primary">Riprova</button>
+      </div>
+
+      <!-- PLAYLIST CONTENT VIEW -->
+      <div id="playlist-view" class="hidden">
+        
+        <!-- Search & Settings Panel -->
+        <div class="control-panel">
+          <!-- Search Input -->
+          <div class="search-bar">
+            <svg class="search-icon" viewBox="0 0 24 24">
+              <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            </svg>
+            <input type="text" id="search-input" class="search-input" placeholder="Cerca una canzone..." autocomplete="off">
+          </div>
+
+          <!-- Crossfade Toggle -->
+          <div class="crossfade-panel">
+            <div class="crossfade-info">
+              <span class="crossfade-label">Dissolvenza Incrociata</span>
+              <span class="crossfade-desc">Sfoglia il volume tra i brani (5 sec)</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="crossfade-toggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Playlist Info Card -->
+        <div class="playlist-header-card">
+          <div id="playlist-art-placeholder" class="playlist-art">🎵</div>
+          <div class="playlist-info">
+            <h2 id="playlist-title">Caricamento...</h2>
+            <p id="playlist-count">0 brani disponibili</p>
+          </div>
+        </div>
+
+        <!-- Songs List -->
+        <div id="track-list" class="track-list-container">
+          <!-- Dinamicamente popolato con JS -->
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- MINI PLAYER -->
+    <div id="mini-player" class="mini-player">
+      <div class="mini-player-progress-container">
+        <div id="mini-progress-bar" class="mini-player-progress-bar"></div>
+      </div>
+      <div class="mini-player-content">
+        <!-- Info Trigger to open drawer -->
+        <div id="mini-player-trigger" class="mini-player-info">
+          <div id="mini-cover" class="mini-cover">B</div>
+          <div class="mini-texts">
+            <span id="mini-title" class="mini-title">Titolo brano</span>
+            <span id="mini-artist" class="mini-artist">Playlist</span>
+          </div>
+        </div>
+        <!-- Mini controls -->
+        <div class="mini-controls">
+          <button id="btn-mini-play-pause" class="btn-icon">
+            <svg id="svg-mini-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+            <svg id="svg-mini-pause" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+          <button id="btn-mini-next" class="btn-icon">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN EXPANDABLE PLAYER (Drawer) -->
+    <div id="player-drawer" class="player-drawer">
+      <div id="drawer-overlay" class="drawer-bg-overlay"></div>
+      <div class="drawer-container">
+        
+        <!-- Header -->
+        <header class="drawer-header">
+          <button id="btn-drawer-close" class="btn-icon drawer-close-btn">
+            <svg viewBox="0 0 24 24"><path d="M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg>
+          </button>
+          <div class="drawer-header-title">
+            <span class="drawer-top-label">IN RIPRODUZIONE</span>
+            <span id="drawer-playlist-name" class="drawer-playlist-name">Playlist</span>
+          </div>
+          <div style="width: 40px;"></div> <!-- Spacer per bilanciare l'header -->
+        </header>
+
+        <!-- Center: Artwork -->
+        <div class="drawer-artwork-container">
+          <div id="drawer-cover" class="drawer-cover">B</div>
+        </div>
+
+        <!-- Info & Seekbar Section -->
+        <div class="drawer-info-progress">
+          <div class="track-details">
+            <h2 id="drawer-track-title">Seleziona un brano</h2>
+            <p id="drawer-track-subtitle">Nessuna riproduzione attiva</p>
+          </div>
+
+          <!-- Timeline Seekbar -->
+          <div class="timeline-container">
+            <input type="range" id="drawer-seekbar" class="seekbar" min="0" max="100" value="0">
+            <div class="time-labels">
+              <span id="time-current">0:00</span>
+              <span id="time-duration">0:00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls Section -->
+        <div class="drawer-controls">
+          <!-- Shuffle Button -->
+          <button id="btn-shuffle" class="btn-icon control-btn" title="Riproduzione Casuale">
+            <svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+          </button>
+
+          <!-- Prev Button -->
+          <button id="btn-prev" class="btn-icon control-btn" title="Brano Precedente">
+            <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6L18 18V6z"/></svg>
+          </button>
+
+          <!-- Main Play/Pause -->
+          <button id="btn-play-pause" class="btn-play-pause" title="Riproduci/Pausa">
+            <svg id="svg-drawer-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="svg-drawer-pause" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+
+          <!-- Next Button -->
+          <button id="btn-next" class="btn-icon control-btn" title="Brano Successivo">
+            <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+
+          <!-- Repeat Button -->
+          <button id="btn-repeat" class="btn-icon control-btn" title="Ripeti">
+            <svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- AUDIO PLAYER ELEMENT CONTAINER -->
+    <div id="audio-players" style="display:none;">
+      <audio id="audio-1" preload="auto"></audio>
+      <audio id="audio-2" preload="auto"></audio>
+    </div>
+
+  </div>
+
+  <!-- JavaScript -->
+  <script src="app.js?v=7"></script>
+</body>
+</html>

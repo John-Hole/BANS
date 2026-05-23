@@ -1,0 +1,17 @@
+{
+  "name": "bans-player",
+  "version": "1.0.0",
+  "description": "Un riproduttore musicale in stile Spotify per file audio locali.",
+  "scripts": {
+    "start": "npx -y http-server -p 8080 --cors",
+    "build-playlist": "node generate-playlist.js"
+  },
+  "keywords": [
+    "pwa",
+    "music-player",
+    "google-drive",
+    "spotify"
+  ],
+  "author": "",
+  "license": "ISC"
+}
