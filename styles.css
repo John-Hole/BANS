@@ -1070,8 +1070,14 @@ input:checked + .slider:before {
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   gap: 12px;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+.queue-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 102, 204, 0.12);
+  box-shadow: 0 6px 16px rgba(0, 102, 204, 0.04);
 }
 .queue-details {
   flex: 1;

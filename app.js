@@ -916,14 +916,27 @@ function renderQueue() {
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const trackIndex = state.currentTrackIndex + 1 + index;
-      if (confirm(`Sei sicuro di voler rimuovere "${track.name}" dalla coda?`)) {
+      
+      // Animazione fluida di rimozione
+      queueItem.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+      queueItem.style.opacity = '0';
+      queueItem.style.transform = 'translateX(60px)';
+      queueItem.style.height = '0';
+      queueItem.style.paddingTop = '0';
+      queueItem.style.paddingBottom = '0';
+      queueItem.style.marginTop = '0';
+      queueItem.style.marginBottom = '0';
+      queueItem.style.border = 'none';
+      queueItem.style.pointerEvents = 'none';
+      
+      setTimeout(() => {
         state.queue.splice(trackIndex, 1);
         if (state.manualQueueCount > 0) {
           state.manualQueueCount--;
         }
         renderQueue();
         savePlayerStateToCookies();
-      }
+      }, 250);
     });
     
     DOM.drawerQueueContainer.appendChild(queueItem);
@@ -956,18 +969,18 @@ function generatePlaceholderArtwork(title, subtitle) {
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Lettera centrale
+    // Lettera/Numero centrale
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 160px "Outfit", sans-serif';
+    ctx.font = 'bold 140px "Outfit", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const initial = title ? title.trim().charAt(0).toUpperCase() : 'B';
-    ctx.fillText(initial, 256, 256);
+    ctx.fillText(initial, 256, 220);
     
-    // Scritta brand inferiore
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.font = '700 24px "Inter", sans-serif';
-    ctx.fillText('BANS PLAYER', 256, 440);
+    // Scritta brand al centro sotto il numero
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '700 22px "Inter", sans-serif';
+    ctx.fillText('BANS PLAYER', 256, 310);
 
     return canvas.toDataURL('image/png');
   } catch (e) {
