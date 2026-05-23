@@ -7,6 +7,8 @@
 // 1. CONFIGURAZIONE PLAYLIST LOCALE
 // ============================================================================
 const PLAYLIST_JSON_URL = './playlist.json';
+// Silenzio base64 per sbloccare e inizializzare i tag audio in modo sicuro ed evitare errori "Empty src"
+const SILENT_AUDIO_SRC = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAAAAAA==';
 // ============================================================================
 
 // Service Worker: registrazione normale
@@ -128,6 +130,10 @@ function initDOM() {
 function setupAudioPlayers() {
   players.playerA = document.getElementById('audio-1');
   players.playerB = document.getElementById('audio-2');
+  
+  // Imposta subito una sorgente silenziosa valida su entrambi per evitare errori di src vuoto
+  players.playerA.src = SILENT_AUDIO_SRC;
+  players.playerB.src = SILENT_AUDIO_SRC;
   
   players.active = players.playerA;
   players.inactive = players.playerB;
@@ -256,12 +262,9 @@ function unlockAudio() {
   console.log('Sblocco audio tag per iOS/Android...');
   state.audioUnlocked = true;
   try {
-    // Sblocca sempre il player inattivo (che non sta riproducendo)
-    players.inactive.play().then(() => players.inactive.pause()).catch(() => {});
-    // Sblocca il player attivo solo se non sta già riproducendo per evitare interruzioni
-    if (!state.isPlaying) {
-      players.active.play().then(() => players.active.pause()).catch(() => {});
-    }
+    // Sblocca esplicitamente entrambi i tag audio con la clip silenziosa già precaricata
+    players.playerA.play().then(() => players.playerA.pause()).catch(() => {});
+    players.playerB.play().then(() => players.playerB.pause()).catch(() => {});
   } catch (e) {
     console.error('Errore durante lo sblocco dell\'audio:', e);
   }
@@ -445,6 +448,9 @@ function getStreamUrl(track) {
 function playTrackAtIndex(index) {
   if (state.queue.length === 0 || index < 0 || index >= state.queue.length) return;
   
+  // Sblocca subito gli elementi audio prima di cambiare src (fondamentale per gesture trust)
+  unlockAudio();
+
   state.currentTrackIndex = index;
   const track = state.queue[index];
   const streamUrl = getStreamUrl(track);
@@ -453,7 +459,7 @@ function playTrackAtIndex(index) {
   state.isCrossfading = false;
   try {
     players.inactive.pause();
-    players.inactive.src = '';
+    players.inactive.src = SILENT_AUDIO_SRC;
     players.inactive.volume = 1;
   } catch (e) {
     console.error('Errore durante il reset del player inattivo:', e);
@@ -464,6 +470,11 @@ function playTrackAtIndex(index) {
   players.active.volume = 1;
   
   state.isPlaying = true;
+
+  // Avvia IMMEDIATAMENTE la riproduzione per preservare la validità del gesto utente (Safari/iOS timeout)
+  const playPromise = players.active.play();
+
+  // Esegui gli aggiornamenti grafici e della sessione media subito dopo
   updateUI();
   updateMediaSession();
 
@@ -471,7 +482,7 @@ function playTrackAtIndex(index) {
   openDrawer();
   DOM.playerDrawer.classList.add('is-loading');
 
-  players.active.play()
+  playPromise
     .then(() => {
       console.log(`Ora in riproduzione: ${track.name}`);
       DOM.playerDrawer.classList.remove('is-loading');
@@ -556,7 +567,7 @@ function performInstantTransition(nextTrack, nextIndex) {
       console.log(`Ora in riproduzione (alternata): ${nextTrack.name}`);
       DOM.playerDrawer.classList.remove('is-loading');
       oldPlayer.pause();
-      oldPlayer.src = '';
+      oldPlayer.src = SILENT_AUDIO_SRC;
     })
     .catch(err => {
       console.error('Errore riproduzione transizione istantanea:', err);
@@ -618,9 +629,9 @@ function stopPlayback() {
   state.isPlaying = false;
   
   players.playerA.pause();
-  players.playerA.src = '';
+  players.playerA.src = SILENT_AUDIO_SRC;
   players.playerB.pause();
-  players.playerB.src = '';
+  players.playerB.src = SILENT_AUDIO_SRC;
 
   updateUI();
   renderPlaylist();
