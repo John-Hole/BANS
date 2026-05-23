@@ -83,7 +83,6 @@ function initDOM() {
     playlistCount: document.getElementById('playlist-count'),
     trackList: document.getElementById('track-list'),
     searchInput: document.getElementById('search-input'),
-    btnHomeQueue: document.getElementById('btn-home-queue'),
     btnSettings: document.getElementById('btn-settings'),
     settingsDrawer: document.getElementById('settings-drawer'),
     btnSettingsClose: document.getElementById('btn-settings-close'),
@@ -163,9 +162,7 @@ function setupEventListeners() {
   // Ricerca live
   DOM.searchInput.addEventListener('input', handleSearch);
   
-  if (DOM.btnHomeQueue) {
-    DOM.btnHomeQueue.addEventListener('click', openDrawer);
-  }
+
 
   // Riprova in caso di errore
   DOM.btnRetry.addEventListener('click', initApp);
@@ -1080,11 +1077,7 @@ function addToQueue(track) {
   state.queue.splice(insertIndex, 0, trackCopy);
   state.manualQueueCount++;
   
-  if (!state.isPlaying && state.currentTrackIndex === -1) {
-    playTrackAtIndex(0);
-  } else {
-    renderQueue();
-  }
+  renderQueue();
 }
 
 // GESTIONE INSTALLAZIONE PWA (BULLON IN ALTO)
