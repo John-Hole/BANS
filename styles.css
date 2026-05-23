@@ -1070,25 +1070,8 @@ input:checked + .slider:before {
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   gap: 12px;
-  cursor: grab;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-}
-.queue-item:active {
-  cursor: grabbing;
-}
-.queue-item.dragging {
-  opacity: 0.5;
-  background-color: var(--primary-light);
-  border-color: var(--primary);
-}
-.queue-item.drag-over {
-  border-top: 2px solid var(--primary);
-}
-.queue-drag-handle {
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
 }
 .queue-details {
   flex: 1;
@@ -1101,6 +1084,27 @@ input:checked + .slider:before {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: block;
+}
+.queue-delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.queue-delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+.queue-delete-btn svg {
   display: block;
 }
 

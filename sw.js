@@ -1,9 +1,9 @@
-const CACHE_NAME = 'bans-player-v23';
+const CACHE_NAME = 'bans-player-v24';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css?v=23',
-  './app.js?v=23',
+  './styles.css?v=24',
+  './app.js?v=24',
   './manifest.json',
   './playlist.json',
   './icon.svg'

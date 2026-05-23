@@ -901,65 +901,32 @@ function renderQueue() {
   upcomingTracks.forEach((track, index) => {
     const queueItem = document.createElement('div');
     queueItem.className = 'queue-item';
-    queueItem.draggable = true;
     queueItem.dataset.index = state.currentTrackIndex + 1 + index;
     
     queueItem.innerHTML = `
-      <div class="queue-drag-handle">
-        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M3 15h18v-2H3v2zm0 4h18v-2H3v2zm0-8h18V9H3v2zm0-6v2h18V5H3z"/></svg>
-      </div>
       <div class="queue-details">
         <span class="queue-title">${track.name}</span>
       </div>
+      <button class="queue-delete-btn" aria-label="Rimuovi dalla coda">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
     `;
     
-    queueItem.addEventListener('dragstart', handleDragStart);
-    queueItem.addEventListener('dragover', handleDragOver);
-    queueItem.addEventListener('drop', handleDrop);
-    queueItem.addEventListener('dragleave', handleDragLeave);
-    queueItem.addEventListener('dragend', handleDragEnd);
+    const deleteBtn = queueItem.querySelector('.queue-delete-btn');
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const trackIndex = state.currentTrackIndex + 1 + index;
+      if (confirm(`Sei sicuro di voler rimuovere "${track.name}" dalla coda?`)) {
+        state.queue.splice(trackIndex, 1);
+        if (state.manualQueueCount > 0) {
+          state.manualQueueCount--;
+        }
+        renderQueue();
+        savePlayerStateToCookies();
+      }
+    });
     
     DOM.drawerQueueContainer.appendChild(queueItem);
-  });
-}
-
-function handleDragStart(e) {
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', this.dataset.index);
-  this.classList.add('dragging');
-}
-
-function handleDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  this.classList.add('drag-over');
-  return false;
-}
-
-function handleDragLeave(e) {
-  this.classList.remove('drag-over');
-}
-
-function handleDrop(e) {
-  e.stopPropagation();
-  this.classList.remove('drag-over');
-  
-  const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-  const toIndex = parseInt(this.dataset.index);
-  
-  if (fromIndex !== toIndex && !isNaN(fromIndex) && !isNaN(toIndex)) {
-    const movedTrack = state.queue.splice(fromIndex, 1)[0];
-    state.queue.splice(toIndex, 0, movedTrack);
-    renderQueue();
-    savePlayerStateToCookies();
-  }
-  return false;
-}
-
-function handleDragEnd(e) {
-  this.classList.remove('dragging');
-  document.querySelectorAll('.queue-item').forEach(item => {
-    item.classList.remove('drag-over');
   });
 }
 
