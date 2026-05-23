@@ -27,6 +27,15 @@ if ('serviceWorker' in navigator) {
   }).catch((err) => {
     console.log('[SW] Errore di registrazione:', err);
   });
+
+  // Rileva quando il nuovo service worker prende il controllo ed esegue il reload
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    console.log('[SW] Nuova versione attiva rilevata, ricarico la pagina...');
+    window.location.reload();
+  });
 }
 
 // STATO DELLO RIPRODUTTORE
@@ -238,7 +247,7 @@ function setupPlayerEvents(player) {
   });
 
   player.addEventListener('ended', () => {
-    if (player === players.active) {
+    if (player === players.active && state.isPlaying && state.currentTrackIndex !== -1) {
       console.log('Brano concluso sul player attivo.');
       handleTrackEnded();
     }
