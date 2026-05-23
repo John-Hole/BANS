@@ -219,10 +219,13 @@ function setupPlayerEvents(player) {
 function unlockAudio() {
   if (state.audioUnlocked) return;
   console.log('Sblocco audio tag per iOS/Android...');
+  state.audioUnlocked = true;
   try {
-    players.playerA.play().then(() => players.playerA.pause()).catch(() => {});
-    players.playerB.play().then(() => players.playerB.pause()).catch(() => {});
-    state.audioUnlocked = true;
+    // Evita di interrompere la riproduzione se un brano è appena stato avviato dal click
+    if (!state.isPlaying) {
+      players.playerA.play().then(() => players.playerA.pause()).catch(() => {});
+      players.playerB.play().then(() => players.playerB.pause()).catch(() => {});
+    }
   } catch (e) {
     console.error('Errore durante lo sblocco dell\'audio:', e);
   }
