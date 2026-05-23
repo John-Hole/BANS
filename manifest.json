@@ -1,6 +1,6 @@
 {
-  "name": "Bans Player",
-  "short_name": "Bans",
+  "name": "C'entro Bans Player",
+  "short_name": "C'entro Bans",
   "description": "Un riproduttore musicale in stile Spotify per le cartelle pubbliche di Google Drive.",
   "start_url": "./index.html",
   "display": "standalone",

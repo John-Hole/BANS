@@ -1083,9 +1083,26 @@ input:checked + .slider:before {
 .drawer-queue-container::-webkit-scrollbar {
   width: 4px;
 }
-.drawer-queue-container::-webkit-scrollbar-thumb {
+/* QUEUE SECTION HEADER */
+.queue-section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 4px 6px 4px;
+}
+.queue-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 1.2px;
+  white-space: nowrap;
+}
+.queue-section-line {
+  flex: 1;
+  height: 1px;
   background-color: var(--border-color);
-  border-radius: 4px;
+  opacity: 0.85;
 }
 
 /* QUEUE ITEM */

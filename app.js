@@ -439,6 +439,7 @@ function renderPlaylist() {
       // Trova l'indice della traccia nella coda di riproduzione corrente
       const queueIndex = state.queue.findIndex(t => t.id === track.id);
       if (queueIndex !== -1) {
+        state.manualQueueCount = 0; // Reset manual queue when starting a new track from list
         playTrackAtIndex(queueIndex);
       }
     });
@@ -564,8 +565,10 @@ function handleTrackEnded() {
 function playNext(manualSkip = false) {
   if (state.queue.length === 0) return;
 
-  // Resetta contatore coda manuale quando passiamo al prossimo brano
-  state.manualQueueCount = 0;
+  // Decrementa contatore coda manuale se maggiore di zero
+  if (state.manualQueueCount > 0) {
+    state.manualQueueCount--;
+  }
 
   const nextIndex = getNextTrackIndex();
   
@@ -915,6 +918,28 @@ function renderQueue() {
   }
   
   upcomingTracks.forEach((track, index) => {
+    // Intestazione per i brani inseriti manualmente dall'utente
+    if (index === 0 && state.manualQueueCount > 0) {
+      const header = document.createElement('div');
+      header.className = 'queue-section-header';
+      header.innerHTML = `
+        <span class="queue-section-title">In coda da te</span>
+        <div class="queue-section-line"></div>
+      `;
+      DOM.drawerQueueContainer.appendChild(header);
+    }
+    
+    // Linea divisoria / Intestazione prima dei brani naturali (coda normale)
+    if (state.manualQueueCount > 0 && index === state.manualQueueCount) {
+      const divider = document.createElement('div');
+      divider.className = 'queue-section-header';
+      divider.innerHTML = `
+        <span class="queue-section-title">A seguire</span>
+        <div class="queue-section-line"></div>
+      `;
+      DOM.drawerQueueContainer.appendChild(divider);
+    }
+
     const queueItem = document.createElement('div');
     queueItem.className = 'queue-item';
     queueItem.dataset.index = state.currentTrackIndex + 1 + index;
@@ -947,8 +972,11 @@ function renderQueue() {
       
       setTimeout(() => {
         state.queue.splice(trackIndex, 1);
-        if (state.manualQueueCount > 0) {
-          state.manualQueueCount--;
+        // Decrementiamo il contatore manuale solo se l'elemento rimosso era parte delle aggiunte manuali
+        if (index < state.manualQueueCount) {
+          if (state.manualQueueCount > 0) {
+            state.manualQueueCount--;
+          }
         }
         renderQueue();
         savePlayerStateToCookies();
