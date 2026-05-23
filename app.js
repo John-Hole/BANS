@@ -1003,32 +1003,28 @@ function updateMediaSession() {
 // AZIONI APERTURA / CHIUSURA PLAYER DRAWER
 function openDrawer() {
   if (DOM.playerDrawer) {
-    DOM.playerDrawer.classList.add('active');
-    if (DOM.drawerOverlay) DOM.drawerOverlay.classList.add('active');
+    DOM.playerDrawer.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
 }
 
 function closeDrawer() {
   if (DOM.playerDrawer) {
-    DOM.playerDrawer.classList.remove('active');
-    if (DOM.drawerOverlay) DOM.drawerOverlay.classList.remove('active');
+    DOM.playerDrawer.classList.remove('open');
     document.body.style.overflow = '';
   }
 }
 
 function openSettings() {
   if (DOM.settingsDrawer) {
-    DOM.settingsDrawer.classList.add('active');
-    if (DOM.drawerOverlay) DOM.drawerOverlay.classList.add('active');
+    DOM.settingsDrawer.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
 }
 
 function closeSettings() {
   if (DOM.settingsDrawer) {
-    DOM.settingsDrawer.classList.remove('active');
-    if (DOM.drawerOverlay) DOM.drawerOverlay.classList.remove('active');
+    DOM.settingsDrawer.classList.remove('open');
     document.body.style.overflow = '';
   }
 }

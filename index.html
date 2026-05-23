@@ -185,13 +185,14 @@
         </div>
 
       </div>
-    </div>
-
-    </div>
+    <!-- MAIN EXPANDABLE PLAYER (Drawer) chiude i suoi div interni, ma non chiudiamo app-container qui -->
+    </div> <!-- / .drawer-container -->
+    </div> <!-- / .player-drawer -->
 
     <!-- SETTINGS DRAWER -->
     <div id="settings-drawer" class="player-drawer">
-      <div class="drawer-content" style="padding: 24px;">
+      <div id="settings-overlay" class="drawer-bg-overlay"></div>
+      <div class="drawer-container">
         <header class="drawer-header" style="margin-bottom: 24px;">
           <button id="btn-settings-close" class="btn-icon">
             <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
@@ -225,6 +226,7 @@
             </label>
           </div>
         </div>
+        </div>
       </div>
     </div>
 
@@ -234,7 +236,7 @@
       <audio id="audio-2" preload="auto"></audio>
     </div>
 
-  </div>
+  </div> <!-- /#app-container -->
 
   <!-- JavaScript -->
   <script src="app.js?v=8"></script>
