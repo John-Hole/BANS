@@ -38,6 +38,9 @@ const state = {
   repeatState: 0,          // 0 = no repeat, 1 = repeat playlist, 2 = repeat track
   audioUnlocked: false,    // Sblocco audio per dispositivi mobile
   playlistName: '',
+  autoplay: true,
+  keepScreenOn: false,
+  manualQueueCount: 0,
 };
 
 // DOPPIO PLAYER AUDIO PER IL CROSSFADE
@@ -79,6 +82,11 @@ function initDOM() {
     trackList: document.getElementById('track-list'),
     searchInput: document.getElementById('search-input'),
     btnHomeQueue: document.getElementById('btn-home-queue'),
+    btnSettings: document.getElementById('btn-settings'),
+    settingsDrawer: document.getElementById('settings-drawer'),
+    btnSettingsClose: document.getElementById('btn-settings-close'),
+    autoplayToggle: document.getElementById('autoplay-toggle'),
+    wakelockToggle: document.getElementById('wakelock-toggle'),
     
     // Mini Player
     miniPlayer: document.getElementById('mini-player'),
@@ -126,7 +134,17 @@ function setupAudioPlayers() {
 
 // CARICA LE IMPOSTAZIONI SALVATE
 function loadSettings() {
-  // Impostazioni future
+  const savedAutoplay = localStorage.getItem('bans_autoplay');
+  if (savedAutoplay !== null) {
+    state.autoplay = savedAutoplay === 'true';
+    if (DOM.autoplayToggle) DOM.autoplayToggle.checked = state.autoplay;
+  }
+
+  const savedWakeLock = localStorage.getItem('bans_wakelock');
+  if (savedWakeLock !== null) {
+    state.keepScreenOn = savedWakeLock === 'true';
+    if (DOM.wakelockToggle) DOM.wakelockToggle.checked = state.keepScreenOn;
+  }
 }
 
 // REGISTRA I GESTORI EVENTI
@@ -149,6 +167,31 @@ function setupEventListeners() {
   DOM.miniPlayerTrigger.addEventListener('click', openDrawer);
   DOM.btnDrawerClose.addEventListener('click', closeDrawer);
   DOM.drawerOverlay.addEventListener('click', closeDrawer);
+
+  // Impostazioni
+  if (DOM.btnSettings) {
+    DOM.btnSettings.addEventListener('click', openSettings);
+  }
+  if (DOM.btnSettingsClose) {
+    DOM.btnSettingsClose.addEventListener('click', closeSettings);
+  }
+  if (DOM.autoplayToggle) {
+    DOM.autoplayToggle.addEventListener('change', (e) => {
+      state.autoplay = e.target.checked;
+      localStorage.setItem('bans_autoplay', state.autoplay);
+    });
+  }
+  if (DOM.wakelockToggle) {
+    DOM.wakelockToggle.addEventListener('change', (e) => {
+      state.keepScreenOn = e.target.checked;
+      localStorage.setItem('bans_wakelock', state.keepScreenOn);
+      if (state.keepScreenOn && state.isPlaying) {
+        requestWakeLock();
+      } else if (!state.keepScreenOn) {
+        releaseWakeLock();
+      }
+    });
+  }
 
   // Controlli di riproduzione Mini Player
   DOM.btnMiniPlayPause.addEventListener('click', (e) => {
@@ -257,8 +300,8 @@ async function fetchPlaylist() {
   
   // Impostiamo il nome fisso della playlist
   state.playlistName = 'Grest PSG Playlist';
-  DOM.playlistTitle.textContent = state.playlistName;
-  DOM.drawerPlaylistName.textContent = state.playlistName;
+  if (DOM.playlistTitle) DOM.playlistTitle.textContent = state.playlistName;
+  if (DOM.drawerPlaylistName) DOM.drawerPlaylistName.textContent = state.playlistName;
 }
 
 // PULISCE IL NOME DEL FILE RIMUOVENDO L'ESTENSIONE
@@ -298,7 +341,7 @@ function getGradient(title) {
 // DISEGNA LA PLAYLIST NEL DOM
 function renderPlaylist() {
   DOM.trackList.innerHTML = '';
-  DOM.playlistCount.textContent = `${state.filteredTracks.length} brani disponibili`;
+  if (DOM.playlistCount) DOM.playlistCount.textContent = `${state.filteredTracks.length} brani disponibili`;
 
   if (state.filteredTracks.length === 0) {
     DOM.trackList.innerHTML = `
@@ -315,8 +358,11 @@ function renderPlaylist() {
     
     // Controlla se è in riproduzione
     const isCurrent = isCurrentTrack(track.id);
-    if (isCurrent) {
+    if (isCurrent && state.isPlaying) {
       trackItem.classList.add('playing');
+    } else if (isCurrent && !state.isPlaying) {
+      // Quando è in pausa, mettiamo una classe per evidenziarlo senza animazione, se serve
+      trackItem.classList.add('selected-paused');
     }
 
     const coverGradient = getGradient(track.name);
@@ -334,6 +380,9 @@ function renderPlaylist() {
       <div class="track-details">
         <span class="track-title">${track.name}</span>
       </div>
+      <button class="btn-add-queue" data-id="${track.id}">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      </button>
     `;
 
     trackItem.addEventListener('click', () => {
@@ -344,13 +393,26 @@ function renderPlaylist() {
       }
     });
 
+    const btnQueue = trackItem.querySelector('.btn-add-queue');
+    btnQueue.addEventListener('click', (e) => {
+      e.stopPropagation();
+      addToQueue(track);
+      
+      // Feedback visivo rapido
+      const originalSvg = btnQueue.innerHTML;
+      btnQueue.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="var(--primary)" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+      setTimeout(() => {
+        btnQueue.innerHTML = originalSvg;
+      }, 1000);
+    });
+
     DOM.trackList.appendChild(trackItem);
   });
 }
 
 // VERIFICA SE UN FILE ID CORRISPONDE AL BRANO IN RIPRODUZIONE
 function isCurrentTrack(trackId) {
-  if (!state.isPlaying || state.currentTrackIndex === -1) return false;
+  if (state.currentTrackIndex === -1) return false;
   const currentTrack = state.queue[state.currentTrackIndex];
   return currentTrack && currentTrack.id === trackId;
 }
@@ -437,8 +499,13 @@ function handleTrackEnded() {
 function playNext(manualSkip = false) {
   if (state.queue.length === 0) return;
 
+  // Resetta contatore coda manuale quando passiamo al prossimo brano
+  state.manualQueueCount = 0;
+
   const nextIndex = getNextTrackIndex();
-  if (nextIndex === -1) {
+  
+  // Se non c'è brano successivo, o se l'autoplay è disattivato e non è uno skip manuale
+  if (nextIndex === -1 || (!state.autoplay && !manualSkip)) {
     stopPlayback();
     return;
   }
@@ -514,11 +581,14 @@ function getNextTrackIndex() {
   return nextIndex;
 }
 
-// PASSA AL BRANO PRECEDENTE
+// RITORNA AL BRANO PRECEDENTE
 function playPrevious() {
-  if (state.queue.length === 0 || state.currentTrackIndex === -1) return;
+  if (state.queue.length === 0) return;
 
-  // Se il brano corrente è iniziato da più di 3 secondi, riavvia la traccia
+  // Resetta contatore coda manuale quando cambiamo brano
+  state.manualQueueCount = 0;
+
+  // Se siamo oltre i 3 secondi, riavvia il brano
   if (players.active.currentTime > 3) {
     players.active.currentTime = 0;
     updateProgress();
@@ -581,6 +651,9 @@ function togglePlayPause() {
   }
 
   updateUI();
+  
+  // Aggiorna la lista brani per togliere/mettere l'animazione della riga
+  renderPlaylist();
   
   if ('mediaSession' in navigator) {
     navigator.mediaSession.playbackState = state.isPlaying ? 'playing' : 'paused';
@@ -930,18 +1003,84 @@ function updateMediaSession() {
 
 // AZIONI APERTURA / CHIUSURA PLAYER DRAWER
 function openDrawer() {
-  DOM.playerDrawer.classList.add('open');
-  document.body.style.overflow = 'hidden'; // Blocca scroll principale
+  if (DOM.playerDrawer) {
+    DOM.playerDrawer.classList.add('active');
+    if (DOM.drawerOverlay) DOM.drawerOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
 }
 
 function closeDrawer() {
-  DOM.playerDrawer.classList.remove('open');
-  document.body.style.overflow = ''; // Ripristina scroll
+  if (DOM.playerDrawer) {
+    DOM.playerDrawer.classList.remove('active');
+    if (DOM.drawerOverlay) DOM.drawerOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+function openSettings() {
+  if (DOM.settingsDrawer) {
+    DOM.settingsDrawer.classList.add('active');
+    if (DOM.drawerOverlay) DOM.drawerOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeSettings() {
+  if (DOM.settingsDrawer) {
+    DOM.settingsDrawer.classList.remove('active');
+    if (DOM.drawerOverlay) DOM.drawerOverlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+}
+
+let wakeLock = null;
+async function requestWakeLock() {
+  if (state.keepScreenOn && 'wakeLock' in navigator) {
+    try {
+      if (!wakeLock) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    } catch (err) {
+      console.warn('Wake Lock error:', err);
+    }
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock !== null) {
+    wakeLock.release().then(() => { wakeLock = null; });
+  }
+}
+
+function addToQueue(track) {
+  let insertIndex = state.currentTrackIndex + 1 + state.manualQueueCount;
+  
+  if (state.currentTrackIndex === -1) {
+    insertIndex = state.manualQueueCount;
+  }
+  
+  if (insertIndex > state.queue.length) {
+    insertIndex = state.queue.length;
+  }
+
+  const trackCopy = { ...track, _queueId: Date.now() + Math.random() };
+  
+  state.queue.splice(insertIndex, 0, trackCopy);
+  state.manualQueueCount++;
+  
+  if (!state.isPlaying && state.currentTrackIndex === -1) {
+    playTrackAtIndex(0);
+  } else {
+    renderQueue();
+  }
 }
 
 // GESTIONE INSTALLAZIONE PWA (BULLON IN ALTO)
 let deferredPrompt;
 function setupPwaInstall() {
+  if (!DOM.btnInstallPwa) return;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
