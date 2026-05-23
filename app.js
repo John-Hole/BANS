@@ -36,11 +36,8 @@ const state = {
   isPlaying: false,        // Stato riproduzione
   isShuffle: false,        // Riproduzione casuale
   repeatState: 0,          // 0 = no repeat, 1 = repeat playlist, 2 = repeat track
-  crossfadeEnabled: false, // Dissolvenza incrociata attiva/disattiva
-  crossfadeDuration: 5,    // Durata dissolvenza in secondi
-  isCrossfading: false,    // Previene conflitti durante la transizione
   audioUnlocked: false,    // Sblocco audio per dispositivi mobile
-  playlistName: 'Grest PSG Playlist',
+  playlistName: '',
 };
 
 // DOPPIO PLAYER AUDIO PER IL CROSSFADE
@@ -81,7 +78,7 @@ function initDOM() {
     playlistCount: document.getElementById('playlist-count'),
     trackList: document.getElementById('track-list'),
     searchInput: document.getElementById('search-input'),
-    crossfadeToggle: document.getElementById('crossfade-toggle'),
+    btnHomeQueue: document.getElementById('btn-home-queue'),
     
     // Mini Player
     miniPlayer: document.getElementById('mini-player'),
@@ -100,7 +97,7 @@ function initDOM() {
     drawerOverlay: document.getElementById('drawer-overlay'),
     btnDrawerClose: document.getElementById('btn-drawer-close'),
     drawerPlaylistName: document.getElementById('drawer-playlist-name'),
-    drawerCover: document.getElementById('drawer-cover'),
+    drawerQueueContainer: document.getElementById('drawer-queue-container'),
     drawerTrackTitle: document.getElementById('drawer-track-title'),
     drawerTrackSubtitle: document.getElementById('drawer-track-subtitle'),
     drawerSeekbar: document.getElementById('drawer-seekbar'),
@@ -129,11 +126,7 @@ function setupAudioPlayers() {
 
 // CARICA LE IMPOSTAZIONI SALVATE
 function loadSettings() {
-  const savedCrossfade = localStorage.getItem('crossfade_enabled');
-  if (savedCrossfade !== null) {
-    state.crossfadeEnabled = savedCrossfade === 'true';
-    DOM.crossfadeToggle.checked = state.crossfadeEnabled;
-  }
+  // Impostazioni future
 }
 
 // REGISTRA I GESTORI EVENTI
@@ -145,11 +138,9 @@ function setupEventListeners() {
   // Ricerca live
   DOM.searchInput.addEventListener('input', handleSearch);
   
-  // Toggle Crossfade
-  DOM.crossfadeToggle.addEventListener('change', (e) => {
-    state.crossfadeEnabled = e.target.checked;
-    localStorage.setItem('crossfade_enabled', state.crossfadeEnabled);
-  });
+  if (DOM.btnHomeQueue) {
+    DOM.btnHomeQueue.addEventListener('click', openDrawer);
+  }
 
   // Riprova in caso di errore
   DOM.btnRetry.addEventListener('click', initApp);
@@ -193,16 +184,13 @@ function setupPlayerEvents(player) {
   player.addEventListener('timeupdate', () => {
     if (player === players.active) {
       updateProgress();
-      checkCrossfadeTrigger();
     }
   });
 
   player.addEventListener('ended', () => {
     if (player === players.active) {
       console.log('Brano concluso sul player attivo.');
-      if (!state.isCrossfading) {
-        handleTrackEnded();
-      }
+      handleTrackEnded();
     }
   });
 
@@ -445,7 +433,7 @@ function handleTrackEnded() {
   }
 }
 
-// PASSA AL BRANO SUCCESSIVO (CON SUPPORT CROSSFADE)
+// PASSA AL BRANO SUCCESSIVO
 function playNext(manualSkip = false) {
   if (state.queue.length === 0) return;
 
@@ -455,16 +443,12 @@ function playNext(manualSkip = false) {
     return;
   }
 
-  // Esegue crossfade solo se abilitato, se la riproduzione è attiva e se non è uno skip manuale rapido
-  if (state.crossfadeEnabled && state.isPlaying && !manualSkip) {
-    const nextTrack = state.queue[nextIndex];
-    performCrossfade(nextTrack, nextIndex);
-  } else if (!manualSkip) {
+  if (!manualSkip) {
     // Usa alternanza istantanea dei player per evitare blocchi autoplay sui browser mobile
     const nextTrack = state.queue[nextIndex];
     performInstantTransition(nextTrack, nextIndex);
   } else {
-    // Skip manuale (sicuro riutilizzare playTrackAtIndex)
+    // Skip manuale
     playTrackAtIndex(nextIndex);
   }
 }
@@ -555,107 +539,6 @@ function playPrevious() {
   playTrackAtIndex(prevIndex);
 }
 
-// CONTROLLO TRIGGER CROSSFADE AUTOMATICO
-function checkCrossfadeTrigger() {
-  if (!state.crossfadeEnabled || state.isCrossfading || state.queue.length <= 1) return;
-
-  const duration = players.active.duration;
-  const currentTime = players.active.currentTime;
-
-  if (!duration || isNaN(duration)) return;
-
-  const triggerTime = duration - state.crossfadeDuration;
-
-  // Se siamo negli ultimi secondi, avvia il crossfade verso il brano successivo
-  if (currentTime >= triggerTime && currentTime < duration - 0.2) {
-    const nextIndex = getNextTrackIndex();
-    if (nextIndex !== -1) {
-      const nextTrack = state.queue[nextIndex];
-      performCrossfade(nextTrack, nextIndex);
-    }
-  }
-}
-
-// ESEGUE LA TRANSIZIONE DI DISSOLVENZA INCROCIATA
-function performCrossfade(nextTrack, nextIndex) {
-  if (state.isCrossfading) return;
-  state.isCrossfading = true;
-
-  console.log(`Crossfade avviato verso: ${nextTrack.name}`);
-
-  const oldPlayer = players.active;
-  const newPlayer = players.inactive;
-
-  // Configura il player inattivo
-  newPlayer.src = getStreamUrl(nextTrack);
-  newPlayer.volume = 0;
-
-  // Salva l'indice precedente per fallback in caso di errore
-  const prevIndex = state.currentTrackIndex;
-
-  state.currentTrackIndex = nextIndex;
-  state.isPlaying = true;
-
-  // Scambia immediatamente i ruoli dei player per aggiornare la seekbar sul nuovo brano
-  players.active = newPlayer;
-  players.inactive = oldPlayer;
-
-  // Aggiorna subito l'interfaccia con i dati del nuovo brano
-  updateUI();
-  updateMediaSession();
-  renderPlaylist();
-
-  newPlayer.play()
-    .then(() => {
-      const durationMs = state.crossfadeDuration * 1000;
-      const stepTime = 50; // Aggiorna volume ogni 50ms
-      const totalSteps = durationMs / stepTime;
-      let step = 0;
-
-      const fadeInterval = setInterval(() => {
-        if (!state.isCrossfading) {
-          clearInterval(fadeInterval);
-          return;
-        }
-
-        step++;
-        const progress = Math.min(1, step / totalSteps);
-
-        // Curva equal power crossfade (trigonometrica)
-        const volOld = Math.cos(progress * Math.PI / 2);
-        const volNew = Math.sin(progress * Math.PI / 2);
-
-        oldPlayer.volume = Math.max(0, Math.min(1, volOld));
-        newPlayer.volume = Math.max(0, Math.min(1, volNew));
-
-        if (step >= totalSteps || newPlayer.paused || oldPlayer.paused) {
-          clearInterval(fadeInterval);
-          completeCrossfade();
-        }
-      }, stepTime);
-
-      function completeCrossfade() {
-        oldPlayer.pause();
-        oldPlayer.src = '';
-        oldPlayer.volume = 1;
-        newPlayer.volume = 1;
-
-        state.isCrossfading = false;
-        renderPlaylist(); // Aggiorna playlist per riflettere stato finale
-        console.log('Crossfade completato con successo.');
-      }
-    })
-    .catch(err => {
-      console.error('Errore nell\'avvio del player inattivo per crossfade:', err);
-      state.isCrossfading = false;
-      
-      // Fallback: ripristina il vecchio player come attivo e rimetti volume a 1
-      oldPlayer.volume = 1;
-      players.active = oldPlayer;
-      players.inactive = newPlayer;
-      state.currentTrackIndex = prevIndex;
-      
-      updateUI();
       renderPlaylist();
     });
 }
@@ -663,7 +546,6 @@ function performCrossfade(nextTrack, nextIndex) {
 // ARRESTA LA RIPRODUZIONE AUDIO E RESETTA GLI STATI
 function stopPlayback() {
   state.isPlaying = false;
-  state.isCrossfading = false;
   
   players.playerA.pause();
   players.playerA.src = '';
