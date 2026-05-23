@@ -1,0 +1,4 @@
+Regole di progetto:
+Al termine di ogni tua modifica su questo progetto:
+1. Devi effettuare il commit e il push delle modifiche (deploy) sulla repository: https://github.com/John-Hole/BANS.git
+2. Ricorda sempre che il sito finale di produzione è: bans.grest2026.it (consideralo per ogni modifica di rete, path assoluti, o CORS).
