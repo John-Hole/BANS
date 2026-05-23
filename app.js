@@ -221,10 +221,11 @@ function unlockAudio() {
   console.log('Sblocco audio tag per iOS/Android...');
   state.audioUnlocked = true;
   try {
-    // Evita di interrompere la riproduzione se un brano è appena stato avviato dal click
+    // Sblocca sempre il player inattivo (che non sta riproducendo)
+    players.inactive.play().then(() => players.inactive.pause()).catch(() => {});
+    // Sblocca il player attivo solo se non sta già riproducendo per evitare interruzioni
     if (!state.isPlaying) {
-      players.playerA.play().then(() => players.playerA.pause()).catch(() => {});
-      players.playerB.play().then(() => players.playerB.pause()).catch(() => {});
+      players.active.play().then(() => players.active.pause()).catch(() => {});
     }
   } catch (e) {
     console.error('Errore durante lo sblocco dell\'audio:', e);
@@ -395,8 +396,15 @@ function playTrackAtIndex(index) {
   const track = state.queue[index];
   const streamUrl = getStreamUrl(track);
 
-  // Termina eventuali crossfade attivi
+  // Termina eventuali crossfade attivi e pulisce il player inattivo per evitare audio sovrapposti
   state.isCrossfading = false;
+  try {
+    players.inactive.pause();
+    players.inactive.src = '';
+    players.inactive.volume = 1;
+  } catch (e) {
+    console.error('Errore durante il reset del player inattivo:', e);
+  }
   
   // Assegna sorgente al player attivo e resetta volume a 1
   players.active.src = streamUrl;
@@ -451,9 +459,63 @@ function playNext(manualSkip = false) {
   if (state.crossfadeEnabled && state.isPlaying && !manualSkip) {
     const nextTrack = state.queue[nextIndex];
     performCrossfade(nextTrack, nextIndex);
+  } else if (!manualSkip) {
+    // Usa alternanza istantanea dei player per evitare blocchi autoplay sui browser mobile
+    const nextTrack = state.queue[nextIndex];
+    performInstantTransition(nextTrack, nextIndex);
   } else {
+    // Skip manuale (sicuro riutilizzare playTrackAtIndex)
     playTrackAtIndex(nextIndex);
   }
+}
+
+// ESEGUE TRANSIZIONE ISTANTANEA ALTERNANDO I PLAYER
+function performInstantTransition(nextTrack, nextIndex) {
+  console.log(`Transizione istantanea (alternata) verso: ${nextTrack.name}`);
+  
+  const oldPlayer = players.active;
+  const newPlayer = players.inactive;
+  
+  // Configura il nuovo player
+  newPlayer.src = getStreamUrl(nextTrack);
+  newPlayer.volume = 1;
+  
+  // Salva l'indice precedente per fallback in caso di errore
+  const prevIndex = state.currentTrackIndex;
+  
+  state.currentTrackIndex = nextIndex;
+  state.isPlaying = true;
+  
+  // Scambia immediatamente i ruoli dei player
+  players.active = newPlayer;
+  players.inactive = oldPlayer;
+  
+  // Aggiorna subito l'interfaccia
+  updateUI();
+  updateMediaSession();
+  renderPlaylist();
+  
+  DOM.playerDrawer.classList.add('is-loading');
+  
+  newPlayer.play()
+    .then(() => {
+      console.log(`Ora in riproduzione (alternata): ${nextTrack.name}`);
+      DOM.playerDrawer.classList.remove('is-loading');
+      oldPlayer.pause();
+      oldPlayer.src = '';
+    })
+    .catch(err => {
+      console.error('Errore riproduzione transizione istantanea:', err);
+      DOM.playerDrawer.classList.remove('is-loading');
+      
+      // Fallback: ripristina
+      oldPlayer.volume = 1;
+      players.active = oldPlayer;
+      players.inactive = newPlayer;
+      state.currentTrackIndex = prevIndex;
+      updateUI();
+      renderPlaylist();
+    });
 }
 
 // CALCOLA L'INDICE DEL BRANO SUCCESSIVO IN BASE ALLE IMPOSTAZIONI DI RIPETIZIONE
@@ -521,17 +583,29 @@ function performCrossfade(nextTrack, nextIndex) {
 
   console.log(`Crossfade avviato verso: ${nextTrack.name}`);
 
-  const activePlayer = players.active;
-  const inactivePlayer = players.inactive;
+  const oldPlayer = players.active;
+  const newPlayer = players.inactive;
 
   // Configura il player inattivo
-  inactivePlayer.src = getStreamUrl(nextTrack);
-  inactivePlayer.volume = 0;
+  newPlayer.src = getStreamUrl(nextTrack);
+  newPlayer.volume = 0;
+
+  // Salva l'indice precedente per fallback in caso di errore
+  const prevIndex = state.currentTrackIndex;
 
   state.currentTrackIndex = nextIndex;
-  updateMediaSession();
+  state.isPlaying = true;
 
-  inactivePlayer.play()
+  // Scambia immediatamente i ruoli dei player per aggiornare la seekbar sul nuovo brano
+  players.active = newPlayer;
+  players.inactive = oldPlayer;
+
+  // Aggiorna subito l'interfaccia con i dati del nuovo brano
+  updateUI();
+  updateMediaSession();
+  renderPlaylist();
+
+  newPlayer.play()
     .then(() => {
       const durationMs = state.crossfadeDuration * 1000;
       const stepTime = 50; // Aggiorna volume ogni 50ms
@@ -548,30 +622,26 @@ function performCrossfade(nextTrack, nextIndex) {
         const progress = Math.min(1, step / totalSteps);
 
         // Curva equal power crossfade (trigonometrica)
-        const volActive = Math.cos(progress * Math.PI / 2);
-        const volInactive = Math.sin(progress * Math.PI / 2);
+        const volOld = Math.cos(progress * Math.PI / 2);
+        const volNew = Math.sin(progress * Math.PI / 2);
 
-        activePlayer.volume = Math.max(0, Math.min(1, volActive));
-        inactivePlayer.volume = Math.max(0, Math.min(1, volInactive));
+        oldPlayer.volume = Math.max(0, Math.min(1, volOld));
+        newPlayer.volume = Math.max(0, Math.min(1, volNew));
 
-        if (step >= totalSteps || activePlayer.paused) {
+        if (step >= totalSteps || newPlayer.paused || oldPlayer.paused) {
           clearInterval(fadeInterval);
           completeCrossfade();
         }
       }, stepTime);
 
       function completeCrossfade() {
-        activePlayer.pause();
-        activePlayer.volume = 1;
-
-        // Scambia i ruoli dei player
-        players.active = inactivePlayer;
-        players.inactive = activePlayer;
+        oldPlayer.pause();
+        oldPlayer.src = '';
+        oldPlayer.volume = 1;
+        newPlayer.volume = 1;
 
         state.isCrossfading = false;
-        
-        updateUI();
-        renderPlaylist();
+        renderPlaylist(); // Aggiorna playlist per riflettere stato finale
         console.log('Crossfade completato con successo.');
       }
     })
@@ -579,9 +649,14 @@ function performCrossfade(nextTrack, nextIndex) {
       console.error('Errore nell\'avvio del player inattivo per crossfade:', err);
       state.isCrossfading = false;
       
-      // Fallback: continua a suonare il brano attivo, poi salta normalmente alla fine
-      activePlayer.volume = 1;
-      players.active = activePlayer;
+      // Fallback: ripristina il vecchio player come attivo e rimetti volume a 1
+      oldPlayer.volume = 1;
+      players.active = oldPlayer;
+      players.inactive = newPlayer;
+      state.currentTrackIndex = prevIndex;
+      
+      updateUI();
+      renderPlaylist();
     });
 }
 
@@ -614,9 +689,15 @@ function togglePlayPause() {
 
   if (state.isPlaying) {
     players.active.pause();
+    if (state.isCrossfading) {
+      players.inactive.pause();
+    }
     state.isPlaying = false;
   } else {
     players.active.play().catch(e => console.error('Impossibile avviare riproduzione:', e));
+    if (state.isCrossfading) {
+      players.inactive.play().catch(e => console.error('Impossibile avviare riproduzione inattiva:', e));
+    }
     state.isPlaying = true;
   }
 
@@ -767,6 +848,11 @@ function updateUI() {
   DOM.miniPlayer.classList.add('active');
   DOM.miniTitle.textContent = track.name;
   DOM.miniArtist.textContent = state.playlistName;
+  if (!state.playlistName) {
+    DOM.miniArtist.style.display = 'none';
+  } else {
+    DOM.miniArtist.style.display = 'block';
+  }
   DOM.miniCover.style.background = grad;
   DOM.miniCover.textContent = initial;
 
@@ -781,8 +867,13 @@ function updateUI() {
   // 2. DRAWER PLAYER
   DOM.drawerTrackTitle.textContent = track.name;
   DOM.drawerTrackSubtitle.textContent = state.playlistName;
-  DOM.drawerCover.style.background = grad;
-  DOM.drawerCover.textContent = initial;
+  if (!state.playlistName) {
+    DOM.drawerTrackSubtitle.style.display = 'none';
+  } else {
+    DOM.drawerTrackSubtitle.style.display = 'block';
+  }
+  
+  renderQueue();
 
   if (state.isPlaying) {
     DOM.playerDrawer.classList.add('playing');
@@ -793,6 +884,82 @@ function updateUI() {
     DOM.svgDrawerPlay.style.display = 'block';
     DOM.svgDrawerPause.style.display = 'none';
   }
+}
+
+// GESTIONE CODA (RENDER E DRAG & DROP)
+function renderQueue() {
+  if (!DOM.drawerQueueContainer) return;
+  DOM.drawerQueueContainer.innerHTML = '';
+  
+  const upcomingTracks = state.queue.slice(state.currentTrackIndex + 1);
+  
+  if (upcomingTracks.length === 0) {
+    DOM.drawerQueueContainer.innerHTML = '<div class="empty-queue" style="text-align:center;color:var(--text-muted);margin-top:20px;">Nessun brano in coda</div>';
+    return;
+  }
+  
+  upcomingTracks.forEach((track, index) => {
+    const queueItem = document.createElement('div');
+    queueItem.className = 'queue-item';
+    queueItem.draggable = true;
+    queueItem.dataset.index = state.currentTrackIndex + 1 + index;
+    
+    queueItem.innerHTML = `
+      <div class="queue-drag-handle">
+        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M3 15h18v-2H3v2zm0 4h18v-2H3v2zm0-8h18V9H3v2zm0-6v2h18V5H3z"/></svg>
+      </div>
+      <div class="queue-details">
+        <span class="queue-title">${track.name}</span>
+      </div>
+    `;
+    
+    queueItem.addEventListener('dragstart', handleDragStart);
+    queueItem.addEventListener('dragover', handleDragOver);
+    queueItem.addEventListener('drop', handleDrop);
+    queueItem.addEventListener('dragleave', handleDragLeave);
+    queueItem.addEventListener('dragend', handleDragEnd);
+    
+    DOM.drawerQueueContainer.appendChild(queueItem);
+  });
+}
+
+function handleDragStart(e) {
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', this.dataset.index);
+  this.classList.add('dragging');
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  this.classList.add('drag-over');
+  return false;
+}
+
+function handleDragLeave(e) {
+  this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  e.stopPropagation();
+  this.classList.remove('drag-over');
+  
+  const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+  const toIndex = parseInt(this.dataset.index);
+  
+  if (fromIndex !== toIndex && !isNaN(fromIndex) && !isNaN(toIndex)) {
+    const movedTrack = state.queue.splice(fromIndex, 1)[0];
+    state.queue.splice(toIndex, 0, movedTrack);
+    renderQueue();
+  }
+  return false;
+}
+
+function handleDragEnd(e) {
+  this.classList.remove('dragging');
+  document.querySelectorAll('.queue-item').forEach(item => {
+    item.classList.remove('drag-over');
+  });
 }
 
 // GENERA ARTWORK DINAMICO PER LA MEDIA SESSION (SCHERMATA DI BLOCCO)

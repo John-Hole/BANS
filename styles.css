@@ -386,6 +386,10 @@ input:checked + .slider:before {
   display: flex;
 }
 
+.track-item.playing.paused .wave-bar {
+  animation-play-state: paused;
+}
+
 .track-item.playing .track-index {
   display: none;
 }
@@ -1001,4 +1005,90 @@ input:checked + .slider:before {
     right: calc(50vw - 224px);
     width: 448px;
   }
+}
+
+/* SEARCH ACTIONS */
+.search-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.btn-queue {
+  background-color: var(--primary-light);
+  color: var(--primary);
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.1);
+}
+.btn-queue:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+/* QUEUE CONTAINER */
+.drawer-queue-container {
+  flex: 1;
+  overflow-y: auto;
+  margin: 16px 0;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+.drawer-queue-container::-webkit-scrollbar {
+  width: 4px;
+}
+.drawer-queue-container::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 4px;
+}
+
+/* QUEUE ITEM */
+.queue-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  gap: 12px;
+  cursor: grab;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+.queue-item:active {
+  cursor: grabbing;
+}
+.queue-item.dragging {
+  opacity: 0.5;
+  background-color: var(--primary-light);
+  border-color: var(--primary);
+}
+.queue-item.drag-over {
+  border-top: 2px solid var(--primary);
+}
+.queue-drag-handle {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+.queue-details {
+  flex: 1;
+  min-width: 0;
+}
+.queue-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
