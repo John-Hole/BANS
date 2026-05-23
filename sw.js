@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bans-player-v11';
+const CACHE_NAME = 'bans-player-v12';
 const ASSETS = [
   './',
   './index.html',

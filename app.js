@@ -539,9 +539,6 @@ function playPrevious() {
   playTrackAtIndex(prevIndex);
 }
 
-      renderPlaylist();
-    });
-}
 
 // ARRESTA LA RIPRODUZIONE AUDIO E RESETTA GLI STATI
 function stopPlayback() {
