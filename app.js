@@ -297,15 +297,42 @@ function setupPlayerEvents(player) {
   });
 }
 
+// HELPER PER SBLOCCARE UN SINGOLO ELEMENTO AUDIO SENZA RIPRODURRE TRACCE REALI
+function unlockSinglePlayer(player) {
+  if (!player) return;
+  
+  // Se la sorgente è già silenziosa o vuota, sblocchiamo direttamente
+  if (player.src === SILENT_AUDIO_SRC || player.src.startsWith('data:') || !player.src) {
+    player.play().then(() => player.pause()).catch(() => {});
+  } else {
+    // Altrimenti eseguiamo lo swap temporaneo con la clip silenziosa per evitare di riprodurre l'audio reale
+    const originalSrc = player.src;
+    const originalTime = player.currentTime;
+    player.src = SILENT_AUDIO_SRC;
+    
+    player.play()
+      .then(() => {
+        player.pause();
+        player.src = originalSrc;
+        if (originalTime > 0) {
+          player.currentTime = originalTime;
+        }
+      })
+      .catch(err => {
+        console.warn('Errore controllato durante lo sblocco:', err);
+        player.src = originalSrc;
+      });
+  }
+}
+
 // SBLOCCA L'AUDIO PER DISPOSITIVI MOBILE TRAMITE GESTO UTENTE
 function unlockAudio() {
   if (state.audioUnlocked) return;
   console.log('Sblocco audio tag per iOS/Android...');
   state.audioUnlocked = true;
   try {
-    // Sblocca esplicitamente entrambi i tag audio con la clip silenziosa già precaricata
-    players.playerA.play().then(() => players.playerA.pause()).catch(() => {});
-    players.playerB.play().then(() => players.playerB.pause()).catch(() => {});
+    unlockSinglePlayer(players.playerA);
+    unlockSinglePlayer(players.playerB);
   } catch (e) {
     console.error('Errore durante lo sblocco dell\'audio:', e);
   }

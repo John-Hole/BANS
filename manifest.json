@@ -4,8 +4,8 @@
   "description": "Un riproduttore musicale in stile Spotify per le cartelle pubbliche di Google Drive.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f0f7ff",
-  "theme_color": "#0066cc",
+  "background_color": "#f4f8fc",
+  "theme_color": "#f4f8fc",
   "orientation": "portrait",
   "icons": [
     {
