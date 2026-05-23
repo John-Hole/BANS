@@ -386,10 +386,6 @@ input:checked + .slider:before {
   display: flex;
 }
 
-.track-item.playing.paused .wave-bar {
-  animation-play-state: paused;
-}
-
 .track-item.playing .track-index {
   display: none;
 }
@@ -1091,4 +1087,70 @@ input:checked + .slider:before {
   overflow: hidden;
   text-overflow: ellipsis;
   display: block;
+}
+
+/* SETTINGS AND TOGGLE SWITCH */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
+}
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--border-color);
+  transition: .4s;
+  border-radius: 24px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+input:checked + .slider {
+  background-color: var(--primary);
+}
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--primary);
+}
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+/* BTN ADD QUEUE */
+.btn-add-queue {
+  background: none;
+  border: none;
+  color: var(--primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.btn-add-queue:hover {
+  background-color: var(--primary-light);
+}
+
+.selected-paused {
+  background-color: rgba(0, 102, 204, 0.05);
+  border-radius: var(--radius);
 }

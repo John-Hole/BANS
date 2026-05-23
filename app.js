@@ -299,8 +299,7 @@ async function fetchPlaylist() {
   state.queue = [...state.tracks];
   
   // Impostiamo il nome fisso della playlist
-  state.playlistName = 'Grest PSG Playlist';
-  if (DOM.playlistTitle) DOM.playlistTitle.textContent = state.playlistName;
+  state.playlistName = '';
   if (DOM.drawerPlaylistName) DOM.drawerPlaylistName.textContent = state.playlistName;
 }
 
