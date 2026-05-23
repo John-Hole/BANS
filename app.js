@@ -515,6 +515,12 @@ function playTrackAtIndex(index) {
   
   state.isPlaying = true;
 
+  // Resetta la seekbar per il nuovo brano
+  if (DOM.drawerSeekbar) {
+    DOM.drawerSeekbar.value = 0;
+    updateSeekbarBackground(0);
+  }
+
   // Avvia IMMEDIATAMENTE la riproduzione per preservare la validità del gesto utente (Safari/iOS timeout)
   const playPromise = players.active.play();
 
@@ -778,6 +784,7 @@ function updateProgress() {
   // Se l'utente non trascina la seekbar, la aggiorniamo
   if (!DOM.drawerSeekbar.dataset.dragging) {
     DOM.drawerSeekbar.value = percent;
+    updateSeekbarBackground(percent);
   }
 
   // Aggiorna mini progress bar
@@ -801,6 +808,13 @@ function updateProgress() {
   }
 }
 
+// AGGIORNA LO SFONDO DELLA SEEKBAR (COLORE PROGRESSO)
+function updateSeekbarBackground(percent) {
+  if (DOM.drawerSeekbar) {
+    DOM.drawerSeekbar.style.background = `linear-gradient(to right, var(--primary) 0%, var(--primary) ${percent}%, var(--border-color) ${percent}%, var(--border-color) 100%)`;
+  }
+}
+
 // GESTIONE TRASCINAMENTO SEEKBAR (SLIDE)
 function handleSeekbarInput() {
   DOM.drawerSeekbar.dataset.dragging = 'true';
@@ -809,6 +823,7 @@ function handleSeekbarInput() {
     const targetPercent = parseFloat(DOM.drawerSeekbar.value);
     const targetTime = (targetPercent / 100) * player.duration;
     DOM.timeCurrent.textContent = formatTime(targetTime);
+    updateSeekbarBackground(targetPercent);
   }
 }
 
@@ -818,6 +833,7 @@ function handleSeekbarChange() {
   if (player && player.duration) {
     const targetPercent = parseFloat(DOM.drawerSeekbar.value);
     player.currentTime = (targetPercent / 100) * player.duration;
+    updateSeekbarBackground(targetPercent);
   }
   delete DOM.drawerSeekbar.dataset.dragging;
 }
@@ -969,18 +985,18 @@ function generatePlaceholderArtwork(title, subtitle) {
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Lettera/Numero centrale
+    // Lettera centrale
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 140px "Outfit", sans-serif';
+    ctx.font = 'bold 160px "Outfit", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const initial = title ? title.trim().charAt(0).toUpperCase() : 'B';
-    ctx.fillText(initial, 256, 215);
+    ctx.fillText(initial, 256, 256);
     
-    // Scritta brand al centro sotto il numero
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '700 22px "Inter", sans-serif';
-    ctx.fillText('BANS PLAYER', 256, 315);
+    // Scritta brand inferiore
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = '700 24px "Inter", sans-serif';
+    ctx.fillText("C'ENTRO BANS PLAYER", 256, 440);
 
     return canvas.toDataURL('image/png');
   } catch (e) {
@@ -1010,7 +1026,7 @@ function updateMediaSession() {
   navigator.mediaSession.metadata = new MediaMetadata({
     title: track.name,
     artist: state.playlistName,
-    album: 'Bans Player',
+    album: "C'entro Bans Player",
     artwork: [
       { src: placeholderUrl, sizes: '512x512', type: 'image/png' }
     ]
@@ -1286,6 +1302,12 @@ function loadTrackAtIndex(index, time = 0) {
   }
   
   state.isPlaying = false;
+
+  // Resetta seekbar all'avvio del caricamento
+  if (DOM.drawerSeekbar) {
+    DOM.drawerSeekbar.value = 0;
+    updateSeekbarBackground(0);
+  }
 
   // Aggiorna l'interfaccia utente
   updateUI();
