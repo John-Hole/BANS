@@ -975,12 +975,12 @@ function generatePlaceholderArtwork(title, subtitle) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const initial = title ? title.trim().charAt(0).toUpperCase() : 'B';
-    ctx.fillText(initial, 256, 220);
+    ctx.fillText(initial, 256, 215);
     
     // Scritta brand al centro sotto il numero
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
     ctx.font = '700 22px "Inter", sans-serif';
-    ctx.fillText('BANS PLAYER', 256, 310);
+    ctx.fillText('BANS PLAYER', 256, 315);
 
     return canvas.toDataURL('image/png');
   } catch (e) {
