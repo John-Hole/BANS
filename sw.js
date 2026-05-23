@@ -2,8 +2,8 @@ const CACHE_NAME = 'bans-player-v20';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
+  './styles.css?v=20',
+  './app.js?v=20',
   './manifest.json',
   './playlist.json',
   './icon.svg'
