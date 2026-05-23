@@ -85,6 +85,7 @@ function initDOM() {
     btnSettings: document.getElementById('btn-settings'),
     settingsDrawer: document.getElementById('settings-drawer'),
     btnSettingsClose: document.getElementById('btn-settings-close'),
+    settingsOverlay: document.getElementById('settings-overlay'),
     autoplayToggle: document.getElementById('autoplay-toggle'),
     wakelockToggle: document.getElementById('wakelock-toggle'),
     
@@ -174,6 +175,9 @@ function setupEventListeners() {
   }
   if (DOM.btnSettingsClose) {
     DOM.btnSettingsClose.addEventListener('click', closeSettings);
+  }
+  if (DOM.settingsOverlay) {
+    DOM.settingsOverlay.addEventListener('click', closeSettings);
   }
   if (DOM.autoplayToggle) {
     DOM.autoplayToggle.addEventListener('change', (e) => {
