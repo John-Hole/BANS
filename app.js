@@ -380,8 +380,8 @@ function handleSearch() {
 
 // URL DI STREAMING LOCALE
 function getStreamUrl(track) {
-  // Aggiungiamo un parametro univoco per bypassare eventuali versioni corrotte bloccate nella HTTP cache del browser
-  return `${track.file}?cb=${Date.now()}`;
+  // Ripristinato caching nativo per velocizzare i caricamenti all'avvio
+  return track.file;
 }
 
 // RIPRODUCE IL BRANO ALL'INDICE SPECIFICATO DELLA CODA
@@ -403,13 +403,19 @@ function playTrackAtIndex(index) {
   updateUI();
   updateMediaSession();
 
+  // Apre il player e mostra il loader mentre carica
+  openDrawer();
+  DOM.playerDrawer.classList.add('is-loading');
+
   players.active.play()
     .then(() => {
       console.log(`Ora in riproduzione: ${track.name}`);
+      DOM.playerDrawer.classList.remove('is-loading');
       updateUI();
     })
     .catch(err => {
       console.error('Errore riproduzione iniziale:', err);
+      DOM.playerDrawer.classList.remove('is-loading');
     });
 
   // Aggiorna lo stato visivo della lista

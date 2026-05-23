@@ -688,6 +688,31 @@ input:checked + .slider:before {
   align-items: center;
   justify-content: center;
   margin: 16px 0;
+  position: relative;
+}
+
+.drawer-loader {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80vw;
+  height: 80vw;
+  max-width: 280px;
+  max-height: 280px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.player-drawer.is-loading .drawer-loader {
+  opacity: 1;
 }
 
 .drawer-cover {
