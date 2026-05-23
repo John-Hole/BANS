@@ -16,6 +16,7 @@
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08);
   --radius: 16px;
   --radius-lg: 24px;
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -26,14 +27,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+html, body {
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: var(--bg-primary);
   color: var(--text-main);
   line-height: 1.5;
-  overflow: hidden;
-  height: 100vh;
-  height: 100dvh;
 }
 
 /* APP CONTAINER */
@@ -41,14 +47,19 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  height: 100dvh;
   position: relative;
+  background-color: var(--bg-primary);
+  overflow: hidden;
 }
 
 /* MAIN SCROLLER */
 main {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
-  padding: 24px 16px calc(96px + var(--safe-bottom) + 16px) 16px;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(24px + var(--safe-top)) 16px calc(96px + var(--safe-bottom) + 16px) 16px;
   scrollbar-width: thin;
   scrollbar-color: var(--primary) transparent;
 }
@@ -467,12 +478,12 @@ input:checked + .slider:before {
   left: 16px;
   right: 16px;
   height: 68px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(230, 240, 255, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 20px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 12px 32px rgba(0, 102, 204, 0.08), 0 2px 8px rgba(0, 102, 204, 0.04);
+  border: 1px solid rgba(0, 102, 204, 0.12);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1043,8 +1054,10 @@ input:checked + .slider:before {
 
 /* QUEUE CONTAINER */
 .drawer-queue-container {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   margin: 16px 0;
   padding-right: 8px;
   display: flex;
