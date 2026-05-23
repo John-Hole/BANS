@@ -191,16 +191,12 @@
 
     <!-- SETTINGS DRAWER -->
     <div id="settings-drawer" class="player-drawer">
-      <div id="settings-overlay" class="drawer-bg-overlay"></div>
+      <div id="settings-overlay" class="drawer-bg-overlay" onclick="closeSettings()"></div>
       <div class="drawer-container">
-        <header class="drawer-header" style="margin-bottom: 24px;">
-          <button id="btn-settings-close" class="btn-icon drawer-close-btn" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--bg-card); border-radius: 50%; border: 1px solid var(--border-color);">
-            <svg viewBox="0 0 24 24" style="width: 24px; height: 24px; fill: currentColor;"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-          </button>
-          <div class="drawer-header-title">
-            <span class="drawer-top-label" style="font-size: 16px;">IMPOSTAZIONI</span>
-          </div>
-          <div style="width: 40px;"></div>
+        <header style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding: 0;">
+          <span onclick="closeSettings()" style="font-size: 28px; font-weight: bold; color: #333; cursor: pointer; padding: 8px 12px; line-height: 1;">✕</span>
+          <span style="font-size: 14px; font-weight: 700; letter-spacing: 1.5px; color: #6b7280; text-transform: uppercase;">IMPOSTAZIONI</span>
+          <span style="width: 52px;"></span>
         </header>
 
         <div class="settings-list">
