@@ -9,21 +9,21 @@
 const PLAYLIST_JSON_URL = './playlist.json';
 // ============================================================================
 
-// RIMOZIONE DI EMERGENZA DEL SERVICE WORKER CON AUTO-RICARICA PER APPLICARE LE MODIFICHE
+// Service Worker: registrazione normale
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    if (registrations.length > 0) {
-      let unregisteredCount = 0;
-      for (let registration of registrations) {
-        registration.unregister().then(() => {
-          unregisteredCount++;
-          if (unregisteredCount === registrations.length) {
-            console.log('Tutti i Service Worker rimossi. Ricarico la pagina...');
-            window.location.reload();
-          }
-        });
-      }
-    }
+  navigator.serviceWorker.register('./sw.js').then((reg) => {
+    console.log('[SW] Registrato con successo', reg.scope);
+    // Forza l'aggiornamento se c'è una nuova versione
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated') {
+          console.log('[SW] Nuova versione attivata');
+        }
+      });
+    });
+  }).catch((err) => {
+    console.log('[SW] Errore di registrazione:', err);
   });
 }
 
